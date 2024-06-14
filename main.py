@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import filedialog
+from dotenv import load_dotenv
+import os
 
-API_KEY = ""
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 
 def choose_folder():
     folder_path = filedialog.askdirectory()
