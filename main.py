@@ -1,9 +1,11 @@
+import customtkinter as ctk
+from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import filedialog
-from dotenv import load_dotenv
-import os
 import requests
 import json
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -46,9 +48,9 @@ def update_api_key():
                 else:
                     file.write(line)
         API_KEY = new_key
-        tk.messagebox.showinfo("Success", "API Key updated successfully!")
+        tk.messagebox.showinfo("Succès", "API Key a été mise à jour avec succès!")
     else:
-        tk.messagebox.showerror("Error", "API Key cannot be empty.")
+        tk.messagebox.showerror("Erreur", "API Key ne peut pas être vide.")
 
 # Update saved Board ID
 def update_board_id():
@@ -65,35 +67,46 @@ def update_board_id():
                 else:
                     file.write(line)
         BOARD_ID = new_key
-        tk.messagebox.showinfo("Success", "Board ID updated successfully!")
+        tk.messagebox.showinfo("Succès", "Board ID a été mise à jour avec succès!")
     else:
-        tk.messagebox.showerror("Error", "Board ID cannot be empty.")
+        tk.messagebox.showerror("Erreur", "Board ID ne peut pas être vide.")
 
-# Check Checkbox
-def on_check():
-    if excelCheckState.get() == 1:
-        chooseBtn.grid(padx=10, column=1, row=0)
+def toggle_switch_excel():
+    if switchExcel.get() == 1:
+        chooseBtn.grid(row=0, column=1, sticky="e", pady=10, padx=10)
     else:
         chooseBtn.grid_forget()
 
+def toggle_switch_pdf():
+    if switchPDF.get() == 1:
+        chooseBtnPDF.grid(row=0, column=1, sticky="e", pady=10, padx=10)
+    else:
+        chooseBtnPDF.grid_forget()
+
 # Open File Explorer to choose path
-def choose_folder():
+def choose_folder(typeExtract):
     folder_path = filedialog.askdirectory()
-    excelPath.delete(0, tk.END)
-    excelPath.insert(0, folder_path)
+    if typeExtract == "excel":
+        excelPath.delete(0, tk.END)
+        excelPath.insert(0, folder_path)
+        excelFilePath.configure(text="*" + folder_path)
+    elif typeExtract == "pdf":
+        pdfPath.delete(0, tk.END)
+        pdfPath.insert(0, folder_path)
+        pdfFilePath.configure(text="*" + folder_path)
 
 # Export Button
 def export_info():
-    if excelCheckState.get() == 0 and pdfCheckState.get() == 0:
-        tk.messagebox.showerror("Error", "You must select a method to export.")
+    if switchExcel.get() == 0 and switchPDF.get() == 0:
+        tk.messagebox.showerror("Erreur", "Vous devez sélectionner une méthode d'exportation.")
     else:
-        if excelCheckState.get() == 1:
+        if switchExcel.get() == 1:
             excelWorks = export_excel()
-        if pdfCheckState.get() == 1:
+            if excelWorks:
+                tk.messagebox.showinfo("Succès", "Exportation réussie!")
+        if switchPDF.get() == 1:
             pass
-        if excelWorks:
-            tk.messagebox.showinfo("Success", "Successfully exported!")
-
+    
 # Export Excel
 def export_excel():
     path = excelPath.get()
@@ -103,7 +116,7 @@ def export_excel():
         print(json.dumps(reformatted_items, indent=2))
         return True
     else:
-        tk.messagebox.showerror("Error", "You must select a folder to save")
+        tk.messagebox.showerror("Erreur", "Vous devez sélectionner un dossier pour enregistrer.")
     return False
 
 # API Request
@@ -155,75 +168,122 @@ def reformat_items(items):
     return formatted_items
 
 
-# Tkinter root setup
+root = ctk.CTk()
+root.title("Monday à Excel")
+root.geometry("700x500")
+root.iconbitmap('./icon.ico')
 
-root = tk.Tk()
+# Choosing a font similar to the one in the image
+design_font_name = "Segoe UI Semibold"
 
-root.geometry("500x500")
+# Image Frame
+imageFrame = ctk.CTkFrame(root, fg_color="red", width=300)
+imageFrame.pack(side="left", fill="y")
 
-root.title("Monday A Excel")
-if os.path.exists("icon.ico"):
-    root.iconbitmap("icon.ico")
+# Disable Resize
+root.resizable(False, False)
 
-# Title Section
-label = tk.Label(root, text="Monday À Excel", font=('Arial', 18))
-label.pack(padx=20, pady=20)
+# Load the image
+image = Image.open("./background.png")
+image = image.resize((300, 500), Image.Resampling.LANCZOS)
+
+# Convert the image to a CTkImage
+ctk_image = ctk.CTkImage(light_image=image, size=(300, 500))
+
+# Create a Label to display the image
+image_label = ctk.CTkLabel(imageFrame, image=ctk_image, text="")
+image_label.place(relwidth=1, relheight=1)  # Fill the entire frame
+
+# Main Frame
+main = ctk.CTkFrame(root)
+main.pack(side="left", expand=True, fill="both")
+
+# Use the chosen font for the bienvenue label
+bienvenue = ctk.CTkLabel(master=main, text="Re-bienvenue!", font=(design_font_name, 44, "bold"), text_color="#047e7e")
+bienvenue.pack(anchor="w", padx=(30,0), pady=(30,0))
+
+mondayTitle = ctk.CTkLabel(master=main, text="Monday à Excel", font=(design_font_name, 20))
+mondayTitle.pack(anchor="w", padx=(30,0))
+
+# Key Frame
+key = ctk.CTkFrame(main)
+key.pack(pady=(10,0), padx=30, fill="x")
 
 # API Section
-apiFrame = tk.Frame(root)
+apiFrame = ctk.CTkFrame(key, fg_color="transparent")
 
-apiLabel = tk.Label(apiFrame, text="API Key: ", font=('Arial', 14))
-apiLabel.grid(row=0, column=0, padx=5)
+apiLabel = ctk.CTkLabel(master=apiFrame, text="API Key: ", font=(design_font_name, 14))
+apiLabel.grid(row=0, column=0, padx=(10,5))
 
-entry = tk.Entry(apiFrame, width=28, font=('Arial', 14))
+entry = ctk.CTkEntry(master=apiFrame, width=210, font=(design_font_name, 14))
 entry.grid(row=0, column=1, padx=5)
 
-saveBtn = tk.Button(apiFrame, text="Save", font=('Arial', 10), command=update_api_key)
-saveBtn.grid(row=0, column=2, padx=5)
+saveBtn = ctk.CTkButton(master=apiFrame, text="Save", font=(design_font_name, 10), width=35, fg_color="#047e7e", command=update_api_key)
+saveBtn.grid(row=0, column=2, padx=(5,10))
 
-apiFrame.pack(pady=10)
-
-# Add Default API Key
 entry.insert(0, API_KEY)
 
+apiFrame.pack(pady=(10,5))
+
 # Board ID Section
-boardFrame = tk.Frame(root)
+boardFrame = ctk.CTkFrame(key, fg_color="transparent")
 
-boardLabel = tk.Label(boardFrame, text="Board ID: ", font=('Arial', 14))
-boardLabel.grid(row=0,column=0, padx=5)
+boardLabel = ctk.CTkLabel(boardFrame, text="Board ID: ", font=(design_font_name, 14))
+boardLabel.grid(row=0, column=0, padx=(10,5))
 
-boardEntry = tk.Entry(boardFrame, width=28, font=('Arial', 14))
+boardEntry = ctk.CTkEntry(boardFrame, width=203, font=(design_font_name, 14))
 boardEntry.grid(row=0, column=1, padx=5)
 
-boardSaveBtn = tk.Button(boardFrame, text="Save", font=('Arial', 10), command=update_board_id)
-boardSaveBtn.grid(row=0, column=2, padx=5)
+boardSaveBtn = ctk.CTkButton(boardFrame, text="Save", font=(design_font_name, 10), width=35, fg_color="#047e7e", command=update_board_id)
+boardSaveBtn.grid(row=0, column=2, padx=(5,10))
 
-boardFrame.pack(pady=10)
-
-# Add Default Board ID
 boardEntry.insert(0, BOARD_ID)
 
-# Excel Checkbox
-excelFrame = tk.Frame(root)
+boardFrame.pack(pady=(5,10))
 
-excelCheckState = tk.IntVar()
-excelCheckBox = tk.Checkbutton(excelFrame, text="Export Excel", font=('Arial', 14), variable=excelCheckState, command=on_check)
-excelCheckBox.grid(padx=10, column=0, row=0)
+# Ask Excel Section
+excelFrame = ctk.CTkFrame(main)
+excelFrame.pack(padx=30, pady=(10,5), fill="x")
+
+excelFrame.columnconfigure(0, weight=1)
+excelFrame.columnconfigure(1, weight=0)
+
+switchExcel = ctk.CTkSwitch(master=excelFrame, text="Extraire Excel", font=(design_font_name, 14), command=toggle_switch_excel, progress_color="#047e7e")
+switchExcel.grid(row=0, column=0, sticky="w", pady=10, padx=10)
 
 # Folder Chooser Excel
-chooseBtn = tk.Button(excelFrame, text="Choose Folder", font=('Arial', 10), command=choose_folder)
+chooseBtn = ctk.CTkButton(excelFrame, text="Choisir un dossier", font=(design_font_name, 12), command=lambda:choose_folder("excel"), fg_color="#047e7e")
+
 excelPath = tk.Entry(root)
 
-excelFrame.pack(pady=10, anchor="w")
+# Ask PDF Section
+pdfFrame = ctk.CTkFrame(main)
+pdfFrame.pack(padx=30, pady=(5,10), fill="x")
 
-# PDF Checkbox
-pdfCheckState = tk.IntVar()
-pdfCheckBox = tk.Checkbutton(root, text="Export PDF", font=('Arial', 14), variable=pdfCheckState)
-pdfCheckBox.pack(padx=10, pady=10, anchor="w")
+pdfFrame.columnconfigure(0, weight=1)
+pdfFrame.columnconfigure(1, weight=0)
 
-# Export Button
-exportBtn = tk.Button(root, text="Export", font=('Arial', 16), command=export_info)
-exportBtn.pack(padx=20, pady=20)
+switchPDF = ctk.CTkSwitch(master=pdfFrame, text="Extraire PDF", font=(design_font_name, 14), command=toggle_switch_pdf, progress_color="#047e7e")
+switchPDF.grid(row=0, column=0, sticky="w", pady=10, padx=10)
+
+chooseBtnPDF = ctk.CTkButton(pdfFrame, text="Choisir un dossier", font=(design_font_name, 12), command=lambda:choose_folder("pdf"), fg_color="#047e7e")
+
+pdfPath = tk.Entry(root)
+
+# Extract Button
+exportBtn = ctk.CTkButton(master=main, text="Exporter", font=(design_font_name, 16), height=35, fg_color="#047e7e", command=export_info)
+exportBtn.pack(pady=10)
+
+#Texts of current path Frame
+pathFrame = ctk.CTkFrame(master=main, fg_color="transparent")
+pathFrame.pack(anchor="w", side="bottom", padx=10)
+
+excelFilePath = ctk.CTkLabel(master=pathFrame, text="")
+excelFilePath.grid(row=0, column=0, sticky="w")
+
+pdfFilePath = ctk.CTkLabel(master=pathFrame, text="")
+pdfFilePath.grid(row=1, column=0, sticky="w")
 
 
+# Start the main loop
 root.mainloop()
