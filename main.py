@@ -6,6 +6,9 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
+import csv
+from openpyxl import load_workbook
+import shutil
 
 load_dotenv()
 
@@ -75,12 +78,16 @@ def toggle_switch_excel():
     if switchExcel.get() == 1:
         chooseBtn.grid(row=0, column=1, sticky="e", pady=10, padx=10)
     else:
+        excelPath.delete(0, tk.END)
+        excelFilePath.configure(text="")
         chooseBtn.grid_forget()
 
 def toggle_switch_pdf():
     if switchPDF.get() == 1:
         chooseBtnPDF.grid(row=0, column=1, sticky="e", pady=10, padx=10)
     else:
+        pdfPath.delete(0, tk.END)
+        pdfFilePath.configure(text="")
         chooseBtnPDF.grid_forget()
 
 # Open File Explorer to choose path
@@ -114,6 +121,33 @@ def export_excel():
         all_items = call_api()
         reformatted_items = reformat_items(all_items)
         print(json.dumps(reformatted_items, indent=2))
+        print("-------")
+        data = json.loads(json.dumps(reformatted_items))
+
+        excel_template = './template.xlsx'
+        workbook_path = "./projets.xlsx"
+
+        shutil.copyfile(excel_template, workbook_path)
+
+        workbook = load_workbook(workbook_path)
+
+        sheet = workbook['ExperiSens']
+
+        for i in range(len(data)):
+            sheet["C" + str(i + 4)] = data[i]["name"]
+            sheet["D" + str(i + 4)] = data[i]["column_values"]["Owner"]
+            sheet["E" + str(i + 4)] = data[i]["column_values"]["Type"]
+            sheet["F" + str(i + 4)] = data[i]["column_values"]["Description"]
+            sheet["H" + str(i + 4)] = data[i]["column_values"]["Date Fin"]
+            sheet["I" + str(i + 4)] = data[i]["column_values"]["Entreprise"]
+            sheet["J" + str(i + 4)] = data[i]["column_values"]["Location"]
+            sheet["K" + str(i + 4)] = data[i]["column_values"]["Status Juridique"]
+            sheet["L" + str(i + 4)] = data[i]["column_values"]["Offer de Service"]
+            sheet["O" + str(i + 4)] = data[i]["column_values"]["Notes"]
+
+        # Save the workbook
+        workbook.save(workbook_path)
+    
         return True
     else:
         tk.messagebox.showerror("Erreur", "Vous devez sélectionner un dossier pour enregistrer.")
