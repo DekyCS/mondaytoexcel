@@ -9,6 +9,14 @@ import os
 import csv
 from openpyxl import load_workbook
 import shutil
+from openpyxl.styles import PatternFill
+from docx import Document
+from datetime import datetime
+from docx.shared import Pt
+from docx.enum.text import WD_COLOR_INDEX
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+
 
 load_dotenv()
 
@@ -110,22 +118,110 @@ def export_info():
         if switchExcel.get() == 1:
             excelWorks = export_excel()
             if excelWorks:
-                tk.messagebox.showinfo("Succès", "Exportation réussie!")
+                tk.messagebox.showinfo("Succès", "Exportation Excel réussie!")
         if switchPDF.get() == 1:
-            pass
-    
+            pdfWorks = export_pdf()
+            if pdfWorks:
+                tk.messagebox.showinfo("Succès", "Exportation Word réussie!")
+
+
+# Export Word
+def export_pdf():
+    path = pdfPath.get()
+    if path:
+        all_items = call_api()
+        reformatted_items = reformat_items(all_items)
+        data = json.loads(json.dumps(reformatted_items))
+
+        doc = Document('./template.docx')
+
+        geolocator = Nominatim(user_agent="geo_distance")
+
+        for para in doc.paragraphs:
+            if "Projet Complet d’ExperiSens" in para.text:
+                for i in range(len(data)):
+                    if data[i]["column_values"]["Statut"] == "Complété":
+                        project = ""
+                        if data[i]["column_values"]["Code Projet"] != "":
+                            project += f'{data[i]["column_values"]["Code Projet"]}'
+
+                        location_name = data[i]["column_values"]["Lieu"]
+                        if location_name != "":
+                            location = geolocator.geocode(location_name)
+            
+                            if location is None:
+                                print(f"Could not geocode location: {location_name}")
+                                continue
+
+                            # Define locations
+                            ITHQ = geolocator.geocode("ITHQ, Montreal, QC, Canada")
+
+                            #Coords
+                            coords_ithq = (ITHQ.latitude, ITHQ.longitude)
+                            coords = (location.latitude, location.longitude)
+
+                            distance = geodesic(coords_ithq, coords).kilometers
+
+                            run = para.add_run(f"\n {project} {data[i]['name'].capitalize()} {distance:.2f} km.")
+                            run.font.size = Pt(9)                          
+                            if distance > 100:
+                                run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+                        else:
+                            run = para.add_run(f"\n {project} {data[i]['name'].capitalize()}")
+                            run.font.size = Pt(9)
+            if "Projet Non Complet d'ExperiSens" in para.text:
+                for i in range(len(data)):
+                    if data[i]["column_values"]["Statut"] != "Complété":
+                        project = ""
+                        if data[i]["column_values"]["Code Projet"] != "":
+                            project += f'{data[i]["column_values"]["Code Projet"]}'
+                        
+                        location_name = data[i]["column_values"]["Lieu"]
+                        if location_name != "":
+                            location = geolocator.geocode(location_name)
+            
+                            if location is None:
+                                print(f"Could not geocode location: {location_name}")
+                                continue
+
+                            # Define locations
+                            ITHQ = geolocator.geocode("ITHQ, Montreal, QC, Canada")
+
+                            #Coords
+                            coords_ithq = (ITHQ.latitude, ITHQ.longitude)
+                            coords = (location.latitude, location.longitude)
+
+                            distance = geodesic(coords_ithq, coords).kilometers
+
+                            run = para.add_run(f"\n {project} {data[i]['name'].capitalize()} {distance:.2f} km.")
+                            run.font.size = Pt(9)                          
+                            if distance > 100:
+                                run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+                        else:
+                            run = para.add_run(f"\n {project} {data[i]['name'].capitalize()}")
+                            run.font.size = Pt(9)
+
+        doc.save(f"{path}/{datetime.now().year}-{datetime.now().year + 1} Requête annuelle.docx")
+
+        return True
+    else:
+        tk.messagebox.showerror("Erreur", "Vous devez sélectionner un dossier pour enregistrer.")
+    return False
+
+
+
 # Export Excel
 def export_excel():
     path = excelPath.get()
     if path:
         all_items = call_api()
         reformatted_items = reformat_items(all_items)
-        print(json.dumps(reformatted_items, indent=2))
-        print("-------")
+        #print(json.dumps(reformatted_items, indent=2))
+        #print("-------")
         data = json.loads(json.dumps(reformatted_items))
 
         excel_template = './template.xlsx'
-        workbook_path = "./projets.xlsx"
+        workbook_path = path + "/projets.xlsx"
 
         shutil.copyfile(excel_template, workbook_path)
 
@@ -133,17 +229,90 @@ def export_excel():
 
         sheet = workbook['ExperiSens']
 
+        # Cell colours
+
+        # Statut
+        afaire = PatternFill(start_color="7b7f90", end_color="7b7f90", fill_type="solid")
+        planifie = PatternFill(start_color="639cc9", end_color="639cc9", fill_type="solid")
+        encours = PatternFill(start_color="edbf72", end_color="edbf72", fill_type="solid")
+        bloque = PatternFill(start_color="d0717f", end_color="d0717f", fill_type="solid")
+        complete = PatternFill(start_color="78d196", end_color="78d196", fill_type="solid")
+
+        # Récurrence
+        aucune = PatternFill(start_color="7b7f90", end_color="7b7f90", fill_type="solid")
+        journalier = PatternFill(start_color="edbf72", end_color="edbf72", fill_type="solid")
+        hebdomadaire = PatternFill(start_color="b1bee5", end_color="b1bee5", fill_type="solid")
+        mensuelle = PatternFill(start_color="baabf2", end_color="baabf2", fill_type="solid")
+        trimestrielle = PatternFill(start_color="94d4d0", end_color="94d4d0", fill_type="solid")
+        annuelle = PatternFill(start_color="8caef6", end_color="8caef6", fill_type="solid")
+
+        # Priorité
+        faible = PatternFill(start_color="f3d659", end_color="f3d659", fill_type="solid")
+        moyenne = PatternFill(start_color="edbf72", end_color="edbf72", fill_type="solid")
+        haute = PatternFill(start_color="e68862", end_color="e68862", fill_type="solid")
+        urgent = PatternFill(start_color="d0717f", end_color="d0717f", fill_type="solid")
+
+
         for i in range(len(data)):
-            sheet["C" + str(i + 4)] = data[i]["name"]
-            sheet["D" + str(i + 4)] = data[i]["column_values"]["Owner"]
-            sheet["E" + str(i + 4)] = data[i]["column_values"]["Type"]
-            sheet["F" + str(i + 4)] = data[i]["column_values"]["Description"]
-            sheet["H" + str(i + 4)] = data[i]["column_values"]["Date Fin"]
-            sheet["I" + str(i + 4)] = data[i]["column_values"]["Entreprise"]
-            sheet["J" + str(i + 4)] = data[i]["column_values"]["Location"]
-            sheet["K" + str(i + 4)] = data[i]["column_values"]["Status Juridique"]
-            sheet["L" + str(i + 4)] = data[i]["column_values"]["Offer de Service"]
-            sheet["O" + str(i + 4)] = data[i]["column_values"]["Notes"]
+            status = data[i]["column_values"]["Statut"]
+            sheet["B" + str(i + 4)] = status
+            if status == "À Faire":
+                sheet["B" + str(i + 4)].fill = afaire
+            elif status == "Planifié":
+                sheet["B" + str(i + 4)].fill = planifie
+            elif status == "En Cours":
+                sheet["B" + str(i + 4)].fill = encours
+            elif status == "Bloqué":
+                sheet["B" + str(i + 4)].fill = bloque
+            elif status == "Complété":
+                sheet["B" + str(i + 4)].fill = complete
+
+            sheet["C" + str(i + 4)] = data[i]["name"].capitalize()
+
+            sheet["D" + str(i + 4)] = data[i]["column_values"]["Code Projet"]
+
+            responsable = data[i]["column_values"]["Responsable"]
+            responsable = responsable.split(".")[0]
+            sheet["E" + str(i + 4)] = responsable.capitalize()
+
+            sheet["F" + str(i + 4)] = data[i]["column_values"]["Date Limite"]
+
+            recurrence = data[i]["column_values"]["Récurrence"]
+            sheet["G" + str(i + 4)] = recurrence
+            if recurrence == "Aucune":
+                sheet["G" + str(i + 4)].fill = aucune
+            elif recurrence == "Journalier":
+                sheet["G" + str(i + 4)].fill = journalier
+            elif recurrence == "Hebdomadaire":
+                sheet["G" + str(i + 4)].fill = hebdomadaire
+            elif recurrence == "Mensuelle":
+                sheet["G" + str(i + 4)].fill = mensuelle
+            elif recurrence == "Trimestrielle":
+                sheet["G" + str(i + 4)].fill = trimestrielle
+            elif recurrence == "Annuelle":
+                sheet["G" + str(i + 4)].fill = annuelle
+
+            priority = data[i]["column_values"]["Priorité"]
+            sheet["H" + str(i + 4)] = priority
+            if priority == "":
+                pass
+            elif priority == "Faible":
+                sheet["H" + str(i + 4)].fill = faible
+            elif priority == "Moyenne":
+                sheet["H" + str(i + 4)].fill = moyenne
+            elif priority == "Haute":
+                sheet["H" + str(i + 4)].fill = haute
+            elif priority == "Urgent":
+                sheet["H" + str(i + 4)].fill = urgent
+
+            sheet["I" + str(i + 4)] = data[i]["column_values"]["Temps Estimé"]
+            sheet["J" + str(i + 4)] = data[i]["column_values"]["Département"]
+            sheet["K" + str(i + 4)] = data[i]["column_values"]["Contacts"]
+            sheet["L" + str(i + 4)] = data[i]["column_values"]["Téléphone"]
+            sheet["M" + str(i + 4)] = data[i]["column_values"]["Lieu"]
+
+
+
 
         # Save the workbook
         workbook.save(workbook_path)
@@ -190,7 +359,7 @@ def call_api():
 
     return items
 
-# Function to reformat items into the desired structure
+# Function to reformat items into the desired structure (puts it into a dict)
 def reformat_items(items):
     formatted_items = []
     for item in items:
@@ -297,7 +466,7 @@ pdfFrame.pack(padx=30, pady=(5,10), fill="x")
 pdfFrame.columnconfigure(0, weight=1)
 pdfFrame.columnconfigure(1, weight=0)
 
-switchPDF = ctk.CTkSwitch(master=pdfFrame, text="Extraire PDF", font=(design_font_name, 14), command=toggle_switch_pdf, progress_color="#047e7e")
+switchPDF = ctk.CTkSwitch(master=pdfFrame, text="Extraire Word", font=(design_font_name, 14), command=toggle_switch_pdf, progress_color="#047e7e")
 switchPDF.grid(row=0, column=0, sticky="w", pady=10, padx=10)
 
 chooseBtnPDF = ctk.CTkButton(pdfFrame, text="Choisir un dossier", font=(design_font_name, 12), command=lambda:choose_folder("pdf"), fg_color="#047e7e")
